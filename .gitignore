@@ -1,5 +1,6 @@
 .vscode
 build/
 bin/
+output/
 .pytest_cache/
 __pycache__/

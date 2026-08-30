@@ -81,8 +81,9 @@ static void test_array_fora_de_ordem_e_detectado(void)
     TEST_ASSERT_FALSE(cve_array_is_sorted_by_key(&array));
 }
 
-
+/* ---------------------------------------------------------------------
  * cve_parse_key
+ * ------------------------------------------------------------------- */
 
 static void test_parse_key_formato_valido(void)
 {
@@ -121,9 +122,9 @@ static void test_parse_key_rejeita_zero_a_esquerda_alem_do_minimo(void)
     TEST_ASSERT_FALSE(cve_parse_key("CVE-2025-00001", &year, &number));
 }
 
-
+/* ---------------------------------------------------------------------
  * cve_array_load_csv
-
+ * ------------------------------------------------------------------- */
 
 static void write_fixture(const char *content)
 {

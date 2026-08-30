@@ -6,7 +6,9 @@
 void setUp(void) {}
 void tearDown(void) {}
 
+/* ---------------------------------------------------------------------
  * csv_parse_line
+ * ------------------------------------------------------------------- */
 
 static void test_parse_line_campos_simples(void)
 {
@@ -82,8 +84,9 @@ static void test_parse_line_erro_aspas_no_meio_de_campo_sem_aspas(void)
     TEST_ASSERT_FALSE(csv_parse_line("ab\"cd", fields, 1U));
 }
 
+/* ---------------------------------------------------------------------
  * csv_header_matches
-
+ * ------------------------------------------------------------------- */
 
 static void test_header_matches_quando_igual(void)
 {
@@ -107,8 +110,9 @@ static void test_header_matches_quando_diferente(void)
     csv_free_fields(fields, 3U);
 }
 
+/* ---------------------------------------------------------------------
  * csv_decode_text
- 
+ * ------------------------------------------------------------------- */
 
 static void test_decode_text_sem_escapes_fica_igual(void)
 {
@@ -150,8 +154,9 @@ static void test_decode_text_barra_no_final_retorna_null(void)
     TEST_ASSERT_NULL(csv_decode_text("abc\\"));
 }
 
+/* ---------------------------------------------------------------------
  * csv_read_line
-
+ * ------------------------------------------------------------------- */
 
 static FILE *file_with_content(const char *content)
 {
