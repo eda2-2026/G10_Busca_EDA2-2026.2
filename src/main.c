@@ -9,6 +9,7 @@ int main(int argc, char **argv)
     size_t published_count = 0U;
     size_t rejected_count = 0U;
     size_t index;
+    int key_order_ok;
 
     if (argc > 2) {
         fprintf(stderr, "Uso: %s [caminho_para_cves.csv]\n", argv[0]);
@@ -30,10 +31,13 @@ int main(int argc, char **argv)
         }
     }
 
+    key_order_ok = cve_array_is_sorted_by_key(&cves);
+
     printf("CVEs carregadas: %zu\n", cves.count);
     printf("PUBLISHED: %zu\n", published_count);
     printf("REJECTED: %zu\n", rejected_count);
+    printf("Ordenacao por chave CVE: %s\n", key_order_ok ? "OK" : "ERRO");
 
     cve_array_free(&cves);
-    return 0;
+    return key_order_ok ? 0 : 1;
 }

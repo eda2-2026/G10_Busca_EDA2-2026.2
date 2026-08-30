@@ -2,6 +2,7 @@
 #define CVE_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 typedef enum {
     CVE_STATE_PUBLISHED,
@@ -10,6 +11,8 @@ typedef enum {
 
 typedef struct {
     char *cve_id;
+    uint32_t year;
+    uint32_t number;
     CVEState state;
     char *description_en;
     char *title;
@@ -24,5 +27,7 @@ typedef struct {
 
 int cve_array_load_csv(CVEArray *array, const char *path);
 void cve_array_free(CVEArray *array);
+int cve_compare_key(const CVE *left, const CVE *right);
+int cve_array_is_sorted_by_key(const CVEArray *array);
 
 #endif

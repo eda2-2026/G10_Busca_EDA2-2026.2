@@ -39,6 +39,40 @@ void cve_array_free(CVEArray *array)
     *array = (CVEArray){0};
 }
 
+int cve_compare_key(const CVE *left, const CVE *right)
+{
+    if (left->year < right->year) {
+        return -1;
+    }
+    if (left->year > right->year) {
+        return 1;
+    }
+    if (left->number < right->number) {
+        return -1;
+    }
+    if (left->number > right->number) {
+        return 1;
+    }
+    return 0;
+}
+
+int cve_array_is_sorted_by_key(const CVEArray *array)
+{
+    size_t index;
+
+    if (array == NULL || (array->count > 0U && array->items == NULL)) {
+        return 0;
+    }
+
+    for (index = 1U; index < array->count; ++index) {
+        if (cve_compare_key(&array->items[index - 1U], &array->items[index]) > 0) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 static int grow_buffer(char **buffer, size_t *capacity, size_t required)
 {
     size_t new_capacity;
@@ -284,9 +318,72 @@ static int append_cve(CVEArray *array, CVE *cve)
     return 1;
 }
 
+static int parse_decimal_u32(
+    const char *digits,
+    size_t length,
+    uint32_t *result
+)
+{
+    uint32_t value = 0U;
+    size_t index;
+
+    if (length == 0U || result == NULL) {
+        return 0;
+    }
+
+    for (index = 0U; index < length; ++index) {
+        uint32_t digit;
+
+        if (digits[index] < '0' || digits[index] > '9') {
+            return 0;
+        }
+        digit = (uint32_t)(digits[index] - '0');
+        if (value > (UINT32_MAX - digit) / 10U) {
+            return 0;
+        }
+        value = value * 10U + digit;
+    }
+
+    *result = value;
+    return 1;
+}
+
+static int parse_cve_key(
+    const char *cve_id,
+    uint32_t *year,
+    uint32_t *number
+)
+{
+    size_t length;
+    size_t number_length;
+
+    if (cve_id == NULL || year == NULL || number == NULL) {
+        return 0;
+    }
+
+    length = strlen(cve_id);
+    if (length < 13U
+        || strncmp(cve_id, "CVE-", 4U) != 0
+        || cve_id[8] != '-') {
+        return 0;
+    }
+
+    number_length = length - 9U;
+    if (number_length < 4U
+        || (number_length > 4U && cve_id[9] == '0')
+        || !parse_decimal_u32(cve_id + 4U, 4U, year)
+        || !parse_decimal_u32(cve_id + 9U, number_length, number)
+        || *year == 0U
+        || *number == 0U) {
+        return 0;
+    }
+
+    return 1;
+}
+
 static int build_cve(char **fields, CVE *cve)
 {
-    if (fields[0][0] == '\0') {
+    if (!parse_cve_key(fields[0], &cve->year, &cve->number)) {
         return 0;
     }
 
