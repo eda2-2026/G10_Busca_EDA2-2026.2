@@ -30,4 +30,11 @@ void cve_array_free(CVEArray *array);
 int cve_compare_key(const CVE *left, const CVE *right);
 int cve_array_is_sorted_by_key(const CVEArray *array);
 
+/* Extrai year/number de um cve_id no formato "CVE-AAAA-N...N" (N >= 4
+ * digitos, sem zero a esquerda alem dos 4 minimos, ano e numero > 0).
+ * Retorna 1 e preenche *year e *number em sucesso, 0 se o formato for
+ * invalido. Publica porque product.c (Fase 2) reutiliza a mesma chave
+ * para relacionar produtos a CVEs. */
+int cve_parse_key(const char *cve_id, uint32_t *year, uint32_t *number);
+
 #endif
