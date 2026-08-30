@@ -169,7 +169,7 @@ int main(void)
             FinderResult result = {0};
 
             if (!finder_search(&cves, &products, trimmed, &result)) {
-                printf("Formato invalido. Use CVE-AAAA-N (ex.: CVE-2025-1).\n\n");
+                printf("Formato invalido. Use CVE-AAAA-NNNN, com o numero em pelo menos 4 digitos (ex.: CVE-2025-0001).\n\n");
                 continue;
             }
 
