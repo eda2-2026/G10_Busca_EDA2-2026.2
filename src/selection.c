@@ -7,7 +7,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <direct.h>
+#include <windows.h>
+#else
 #include <sys/stat.h>
+#endif
 
 #define INITIAL_ARRAY_CAPACITY 16U
 
@@ -334,23 +339,58 @@ parse_error:
  * Escrita (SelectionArray -> JSON)
  * ------------------------------------------------------------------- */
 
+static int create_directory(const char *path)
+{
+#ifdef _WIN32
+    return _mkdir(path);
+#else
+    return mkdir(path, 0755);
+#endif
+}
+
+static int replace_file(const char *source, const char *destination)
+{
+#ifdef _WIN32
+    if (MoveFileExA(
+            source,
+            destination,
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH
+        ) != 0) {
+        return 0;
+    }
+
+    errno = EIO;
+    return -1;
+#else
+    return rename(source, destination);
+#endif
+}
+
 static void ensure_parent_directory_exists(const char *path)
 {
-    const char *last_slash = strrchr(path, '/');
+    const char *last_separator = strrchr(path, '/');
     char *dir;
+#ifdef _WIN32
+    const char *last_backslash = strrchr(path, '\\');
 
-    if (last_slash == NULL) {
+    if (last_backslash != NULL
+        && (last_separator == NULL || last_backslash > last_separator)) {
+        last_separator = last_backslash;
+    }
+#endif
+
+    if (last_separator == NULL) {
         return; /* caminho sem diretorio: nada a criar */
     }
 
-    dir = malloc((size_t)(last_slash - path) + 1U);
+    dir = malloc((size_t)(last_separator - path) + 1U);
     if (dir == NULL) {
         return; /* se falhar, fopen abaixo vai reportar o erro real */
     }
-    memcpy(dir, path, (size_t)(last_slash - path));
-    dir[last_slash - path] = '\0';
+    memcpy(dir, path, (size_t)(last_separator - path));
+    dir[last_separator - path] = '\0';
 
-    mkdir(dir, 0755); /* ignora erro (ex.: ja' existe); fopen reporta depois */
+    (void)create_directory(dir); /* ignora erro (ex.: ja' existe); fopen reporta depois */
 
     free(dir);
 }
@@ -412,7 +452,7 @@ int selection_array_save_json(const SelectionArray *array, const char *path)
         success = 0;
     }
 
-    if (success && rename(tmp_path, path) != 0) {
+    if (success && replace_file(tmp_path, path) != 0) {
         fprintf(stderr, "Erro ao mover %s para %s: %s\n", tmp_path, path, strerror(errno));
         success = 0;
     }
