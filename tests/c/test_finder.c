@@ -39,6 +39,31 @@ static void make_fixture(CVEArray *cves, ProductArray *products, CVE *cve_storag
     *products = (ProductArray){ .items = product_storage, .count = 2, .capacity = 2 };
 }
 
+static ProductArray make_product_search_fixture(Product *storage)
+{
+    storage[0] = make_product(2025, 3, "CVE-2025-0003", "WordPress");
+    storage[1] = make_product(2025, 1, "CVE-2025-0001", "Beta");
+    storage[2] = make_product(2025, 4, "CVE-2025-0004", "wordpress");
+    storage[3] = make_product(2025, 2, "CVE-2025-0002", "WORDPRESS");
+    return (ProductArray){ .items = storage, .count = 4U, .capacity = 4U };
+}
+
+static void assert_product_range_contains(
+    const ProductSearchResult *result,
+    const Product *expected
+)
+{
+    size_t offset;
+
+    for (offset = 0U; offset < result->count; ++offset) {
+        if (product_name_index_get(result->index, result->start + offset) == expected) {
+            return;
+        }
+    }
+
+    TEST_FAIL_MESSAGE("Product esperado nao encontrado no resultado");
+}
+
 static void test_encontra_cve_com_produtos(void)
 {
     CVE cve_storage[2];
@@ -147,6 +172,107 @@ static void test_argumentos_nulos_retornam_zero(void)
     TEST_ASSERT_FALSE(finder_search(&cves, &products, "CVE-2025-0001", NULL));
 }
 
+static void test_busca_produto_existente_com_uma_cve(void)
+{
+    Product storage[4];
+    ProductArray products = make_product_search_fixture(storage);
+    ProductNameIndex index = {0};
+    ProductSearchResult result = {0};
+
+    TEST_ASSERT_TRUE(product_name_index_build(&index, &products));
+    TEST_ASSERT_TRUE(finder_search_product(&index, "Beta", &result));
+    TEST_ASSERT_EQUAL_PTR(&index, result.index);
+    TEST_ASSERT_EQUAL_size_t(0U, result.start);
+    TEST_ASSERT_EQUAL_size_t(1U, result.count);
+    TEST_ASSERT_EQUAL_PTR(
+        &storage[1],
+        product_name_index_get(result.index, result.start)
+    );
+    product_name_index_free(&index);
+}
+
+static void test_busca_produto_existente_com_varias_cves(void)
+{
+    Product storage[4];
+    ProductArray products = make_product_search_fixture(storage);
+    ProductNameIndex index = {0};
+    ProductSearchResult result = {0};
+
+    TEST_ASSERT_TRUE(product_name_index_build(&index, &products));
+    TEST_ASSERT_TRUE(finder_search_product(&index, "WordPress", &result));
+    TEST_ASSERT_EQUAL_PTR(&index, result.index);
+    TEST_ASSERT_EQUAL_size_t(1U, result.start);
+    TEST_ASSERT_EQUAL_size_t(3U, result.count);
+    assert_product_range_contains(&result, &storage[0]);
+    assert_product_range_contains(&result, &storage[2]);
+    assert_product_range_contains(&result, &storage[3]);
+    product_name_index_free(&index);
+}
+
+static void test_busca_produto_inexistente_e_valida(void)
+{
+    Product storage[4];
+    ProductArray products = make_product_search_fixture(storage);
+    ProductNameIndex index = {0};
+    ProductSearchResult result = {0};
+
+    TEST_ASSERT_TRUE(product_name_index_build(&index, &products));
+    TEST_ASSERT_TRUE(finder_search_product(&index, "Inexistente", &result));
+    TEST_ASSERT_EQUAL_PTR(&index, result.index);
+    TEST_ASSERT_EQUAL_size_t(0U, result.count);
+    product_name_index_free(&index);
+}
+
+static void test_busca_produto_em_indice_vazio(void)
+{
+    ProductArray products = {0};
+    ProductNameIndex index = {0};
+    ProductSearchResult result = {0};
+
+    TEST_ASSERT_TRUE(product_name_index_build(&index, &products));
+    TEST_ASSERT_TRUE(finder_search_product(&index, "WordPress", &result));
+    TEST_ASSERT_EQUAL_PTR(&index, result.index);
+    TEST_ASSERT_EQUAL_size_t(0U, result.start);
+    TEST_ASSERT_EQUAL_size_t(0U, result.count);
+    product_name_index_free(&index);
+}
+
+static void test_busca_produto_rejeita_argumentos_invalidos(void)
+{
+    Product storage[4];
+    ProductArray products = make_product_search_fixture(storage);
+    ProductNameIndex index = {0};
+    ProductSearchResult result = { .index = &index, .start = 99U, .count = 99U };
+
+    TEST_ASSERT_TRUE(product_name_index_build(&index, &products));
+
+    TEST_ASSERT_FALSE(finder_search_product(NULL, "WordPress", &result));
+    TEST_ASSERT_NULL(result.index);
+    TEST_ASSERT_EQUAL_size_t(0U, result.start);
+    TEST_ASSERT_EQUAL_size_t(0U, result.count);
+    TEST_ASSERT_FALSE(finder_search_product(&index, NULL, &result));
+    TEST_ASSERT_FALSE(finder_search_product(&index, "", &result));
+    TEST_ASSERT_FALSE(finder_search_product(&index, "WordPress", NULL));
+    product_name_index_free(&index);
+}
+
+static void test_busca_produto_ignora_caixa_ascii(void)
+{
+    Product storage[4];
+    ProductArray products = make_product_search_fixture(storage);
+    ProductNameIndex index = {0};
+    ProductSearchResult result = {0};
+
+    TEST_ASSERT_TRUE(product_name_index_build(&index, &products));
+    TEST_ASSERT_TRUE(finder_search_product(&index, "WordPress", &result));
+    TEST_ASSERT_EQUAL_size_t(3U, result.count);
+    TEST_ASSERT_TRUE(finder_search_product(&index, "wordpress", &result));
+    TEST_ASSERT_EQUAL_size_t(3U, result.count);
+    TEST_ASSERT_TRUE(finder_search_product(&index, "WORDPRESS", &result));
+    TEST_ASSERT_EQUAL_size_t(3U, result.count);
+    product_name_index_free(&index);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -158,6 +284,12 @@ int main(void)
     RUN_TEST(test_formato_invalido_retorna_zero);
     RUN_TEST(test_entrada_vazia_e_invalida);
     RUN_TEST(test_argumentos_nulos_retornam_zero);
+    RUN_TEST(test_busca_produto_existente_com_uma_cve);
+    RUN_TEST(test_busca_produto_existente_com_varias_cves);
+    RUN_TEST(test_busca_produto_inexistente_e_valida);
+    RUN_TEST(test_busca_produto_em_indice_vazio);
+    RUN_TEST(test_busca_produto_rejeita_argumentos_invalidos);
+    RUN_TEST(test_busca_produto_ignora_caixa_ascii);
 
     return UNITY_END();
 }

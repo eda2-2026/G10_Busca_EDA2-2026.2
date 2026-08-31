@@ -84,3 +84,28 @@ int finder_search(
 
     return 1;
 }
+
+int finder_search_product(
+    const ProductNameIndex *index,
+    const char *product_name,
+    ProductSearchResult *out_result
+)
+{
+    size_t start;
+    size_t count;
+
+    if (out_result == NULL) {
+        return 0;
+    }
+    *out_result = (ProductSearchResult){0};
+
+    if (index == NULL || product_name == NULL
+        || !product_name_index_find_exact(index, product_name, &start, &count)) {
+        return 0;
+    }
+
+    out_result->index = index;
+    out_result->start = start;
+    out_result->count = count;
+    return 1;
+}

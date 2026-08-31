@@ -5,6 +5,7 @@
 
 #include "cve.h"
 #include "product.h"
+#include "product_index.h"
 
 typedef struct {
     int found;                /* 1 se o CVE existe na base, 0 caso contrario */
@@ -12,6 +13,12 @@ typedef struct {
     const Product *products;  /* aponta para o primeiro produto dentro do ProductArray recebido */
     size_t product_count;
 } FinderResult;
+
+typedef struct {
+    const ProductNameIndex *index;
+    size_t start;
+    size_t count;
+} ProductSearchResult;
 
 /* Interpreta `raw_input` como um CVE-ID (tolera espacos nas pontas e
  * qualquer combinacao de maiusculas/minusculas), busca no array de CVEs
@@ -26,6 +33,18 @@ int finder_search(
     const ProductArray *products,
     const char *raw_input,
     FinderResult *out_result
+);
+
+/*
+ * Busca exata por nome no ProductNameIndex existente. Retorna 1 para uma
+ * consulta valida, inclusive quando nenhum produto e' encontrado (count == 0).
+ * Retorna 0 para argumentos ou nome invalidos e zera out_result quando ele
+ * estiver disponivel. Os resultados ocupam [start, start + count) no indice.
+ */
+int finder_search_product(
+    const ProductNameIndex *index,
+    const char *product_name,
+    ProductSearchResult *out_result
 );
 
 #endif
