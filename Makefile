@@ -1,8 +1,16 @@
 #  Compilador e flags
 CC := gcc
 CSTD := -std=c11
-WARN := -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion
+WARN := -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion -Werror
 CFLAGS := $(CSTD) $(WARN) -g -Iinclude
+
+ifeq ($(OS),Windows_NT)
+EXEEXT := .exe
+RUN_PREFIX :=
+else
+EXEEXT :=
+RUN_PREFIX := ./
+endif
 
 #  Diretórios 
 SRC_DIR := src
@@ -21,19 +29,20 @@ MAIN_OBJ := $(BUILD_DIR)/main.o
 # juntos num so' executavel
 TEST_SRCS := $(wildcard $(TEST_C_DIR)/test_*.c)
 TEST_BIN_NAMES := $(notdir $(basename $(TEST_SRCS)))
-TEST_BINS := $(addprefix $(BIN_DIR)/,$(TEST_BIN_NAMES))
+APP_BIN := $(BIN_DIR)/cve_finder$(EXEEXT)
+RUN_TEST_TARGETS := $(addprefix run-,$(TEST_BIN_NAMES))
 UNITY_OBJ := $(BUILD_DIR)/unity.o
 
-.PHONY: all test test-c test-python clean
+.PHONY: all test test-c test-python clean $(RUN_TEST_TARGETS)
 
 # Sem isso, o make apaga os .o dos testes depois de linkar cada bin/test_X
 
 .SECONDARY:
 
 # --- Alvo padrão: o executável principal --------------------------------------
-all: $(BIN_DIR)/cve_finder
+all: $(APP_BIN)
 
-$(BIN_DIR)/cve_finder: $(LIB_OBJS) $(MAIN_OBJ) | $(BIN_DIR)
+$(APP_BIN): $(LIB_OBJS) $(MAIN_OBJ) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -o $@ $^
 
 # Regra genérica: qualquer src/X.c vira build/X.o
@@ -45,23 +54,35 @@ $(BUILD_DIR)/tests/%.o: $(TEST_C_DIR)/%.c | $(BUILD_DIR)/tests
 	$(CC) $(CFLAGS) -I$(UNITY_DIR) -c -o $@ $<
 
 $(UNITY_OBJ): $(UNITY_DIR)/unity.c | $(BUILD_DIR)
-	$(CC) $(CSTD) -w -c -o $@ $<
+	$(CC) $(CFLAGS) -I$(UNITY_DIR) -c -o $@ $<
 
 # Regra padrão: build/tests/test_X.o + a "biblioteca" + Unity -> bin/test_X
-$(BIN_DIR)/test_%: $(BUILD_DIR)/tests/test_%.o $(LIB_OBJS) $(UNITY_OBJ) | $(BIN_DIR)
+$(BIN_DIR)/test_%$(EXEEXT): $(BUILD_DIR)/tests/test_%.o $(LIB_OBJS) $(UNITY_OBJ) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -I$(UNITY_DIR) -o $@ $^
 
 test: test-c test-python
 
-test-c: $(TEST_BINS)
-	@set -e; for bin in $(TEST_BINS); do echo "== $$bin =="; ./$$bin; done
+test-c: $(RUN_TEST_TARGETS)
+
+$(RUN_TEST_TARGETS): run-%: $(BIN_DIR)/%$(EXEEXT)
+	@echo == $< ==
+	$(RUN_PREFIX)$<
 
 test-python:
 	pytest tests/python
 
 #  Diretórios de saída 
 $(BUILD_DIR) $(BUILD_DIR)/tests $(BIN_DIR):
+ifeq ($(OS),Windows_NT)
+	if not exist "$@" mkdir "$@"
+else
 	mkdir -p $@
+endif
 
 clean:
+ifeq ($(OS),Windows_NT)
+	if exist "$(BUILD_DIR)" rmdir /S /Q "$(BUILD_DIR)"
+	if exist "$(BIN_DIR)" rmdir /S /Q "$(BIN_DIR)"
+else
 	rm -rf $(BUILD_DIR) $(BIN_DIR)
+endif
