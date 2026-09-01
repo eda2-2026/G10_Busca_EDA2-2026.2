@@ -101,6 +101,15 @@ static int run_cve_query(
         printf(", \"year\": %" PRIu32, result.cve->year);
         printf(", \"state\": ");
         print_state(result.cve->state);
+        if (result.cve->state == CVE_STATE_PUBLISHED) {
+            printf(", \"title\": ");
+            json_write_string(stdout, result.cve->title);
+            printf(", \"description_en\": ");
+            json_write_string(stdout, result.cve->description_en);
+        } else {
+            printf(", \"rejection_reason_en\": ");
+            json_write_string(stdout, result.cve->rejection_reason_en);
+        }
         printf(", \"products\": [");
         for (index = 0U; index < result.product_count; ++index) {
             if (index > 0U) {

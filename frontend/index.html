@@ -223,6 +223,25 @@
   .status-pill.rejected { background: var(--surface); color: var(--text-secondary); }
   .status-pill.rejected .dot { background: var(--text-muted); }
 
+  .cve-details {
+    border-top: 1px solid var(--gridline);
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .cve-detail { margin: 0; color: var(--text-secondary); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .cve-detail-title { color: var(--text-primary); font-weight: 600; }
+  .cve-detail-label {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
   .product-chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .product-chip {
     font-size: 12px;
@@ -255,15 +274,6 @@
   .cmp-value { font-size: 12.5px; text-align: right; font-weight: 700; }
   .cmp-note { font-size: 11.5px; color: var(--text-muted); margin: 2px 0 0; }
   .cmp-note strong { color: var(--text-secondary); font-weight: 600; }
-
-  .persist-note {
-    font-size: 12px;
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .persist-note .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--status-good); }
 
   .methodology {
     font-size: 12.5px;
@@ -352,20 +362,33 @@
     });
   });
 
-  function buildStatusPill(state) {
+  function buildStatusPill(state, showRawState) {
     var pill = document.createElement('span');
     var isPublished = state === 'PUBLISHED';
     pill.className = 'status-pill ' + (isPublished ? 'published' : 'rejected');
     var dot = document.createElement('span');
     dot.className = 'dot';
     pill.appendChild(dot);
-    pill.appendChild(document.createTextNode(isPublished ? 'Aprovada' : 'Rejeitada'));
+    pill.appendChild(document.createTextNode(showRawState ? state : (isPublished ? 'Aprovada' : 'Rejeitada')));
     return pill;
+  }
+
+  function appendCveDetail(container, label, value, className) {
+    var detail = document.createElement('p');
+    detail.className = 'cve-detail' + (className ? ' ' + className : '');
+    var labelEl = document.createElement('span');
+    labelEl.className = 'cve-detail-label';
+    labelEl.textContent = label;
+    detail.appendChild(labelEl);
+    detail.appendChild(document.createTextNode(value));
+    container.appendChild(detail);
   }
 
   function buildCveCard(data) {
     var card = document.createElement('article');
     card.className = 'cve-card';
+    var hasCveDetails = Object.prototype.hasOwnProperty.call(data, 'description_en')
+      || Object.prototype.hasOwnProperty.call(data, 'rejection_reason_en');
 
     var head = document.createElement('div');
     head.className = 'cve-card-head';
@@ -379,10 +402,30 @@
     idBlock.appendChild(idEl);
     idBlock.appendChild(yearEl);
     head.appendChild(idBlock);
-    head.appendChild(buildStatusPill(data.state));
+    head.appendChild(buildStatusPill(data.state, hasCveDetails));
     card.appendChild(head);
 
+    if (hasCveDetails) {
+      var details = document.createElement('div');
+      details.className = 'cve-details';
+      if (data.state === 'PUBLISHED') {
+        if (data.title) {
+          appendCveDetail(details, 'Título', data.title, 'cve-detail-title');
+        }
+        appendCveDetail(details, 'Descrição em inglês', data.description_en);
+      } else {
+        appendCveDetail(details, 'Motivo da rejeição', data.rejection_reason_en);
+      }
+      card.appendChild(details);
+    }
+
     if (data.products && data.products.length > 0) {
+      if (hasCveDetails) {
+        var productsLabel = document.createElement('span');
+        productsLabel.className = 'cve-detail-label';
+        productsLabel.textContent = 'Produtos associados';
+        card.appendChild(productsLabel);
+      }
       var chips = document.createElement('div');
       chips.className = 'product-chips';
       data.products.forEach(function (p) {
@@ -400,7 +443,7 @@
       chip2.textContent = data.product;
       chips2.appendChild(chip2);
       card.appendChild(chips2);
-    } else {
+    } else if (!hasCveDetails || data.state === 'PUBLISHED') {
       var none = document.createElement('span');
       none.className = 'no-products';
       none.textContent = data.state === 'REJECTED' ? 'Sem produtos (CVE rejeitada)' : 'Nenhum produto listado';
@@ -525,20 +568,12 @@
         if (!data.found) {
           var notFound = document.createElement('div');
           notFound.className = 'status-line';
-          notFound.textContent = query + ': não encontrado na base.';
+          notFound.textContent = 'CVE não encontrada: ' + query + '.';
           els.resultCve.appendChild(notFound);
           return;
         }
 
         els.resultCve.appendChild(buildCveCard(data));
-
-        var note = document.createElement('div');
-        note.className = 'persist-note';
-        var dot = document.createElement('span');
-        dot.className = 'dot';
-        note.appendChild(dot);
-        note.appendChild(document.createTextNode('Salvo em output/selections.json'));
-        els.resultCve.appendChild(note);
       })
       .catch(function () {
         setServerUp(false);
