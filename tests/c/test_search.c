@@ -156,6 +156,158 @@ static void test_varredura_encontra_cada_elemento_no_indice_certo(void)
     }
 }
 
+/* ---------------------------------------------------------------------
+ * cve_array_linear_search
+ * (mesmos casos essenciais da binaria - a linear nao tem fronteiras
+ * low/high/mid pra testar, mas os casos de borda do array ainda valem.)
+ * ------------------------------------------------------------------- */
+
+static void test_linear_array_vazio_nunca_encontra(void)
+{
+    CVEArray array = {0};
+    size_t index = 0U;
+
+    TEST_ASSERT_FALSE(cve_array_linear_search(&array, 2025U, 1U, &index));
+}
+
+static void test_linear_encontra_o_primeiro_elemento(void)
+{
+    CVE storage[5];
+    CVEArray array = make_fixed_array(storage);
+    size_t index = 0U;
+
+    TEST_ASSERT_TRUE(cve_array_linear_search(&array, 2025U, 1U, &index));
+    TEST_ASSERT_EQUAL_size_t(0U, index);
+}
+
+static void test_linear_encontra_o_ultimo_elemento(void)
+{
+    CVE storage[5];
+    CVEArray array = make_fixed_array(storage);
+    size_t index = 0U;
+
+    TEST_ASSERT_TRUE(cve_array_linear_search(&array, 2026U, 100U, &index));
+    TEST_ASSERT_EQUAL_size_t(4U, index);
+}
+
+static void test_linear_nao_encontra_chave_em_um_buraco(void)
+{
+    CVE storage[5];
+    CVEArray array = make_fixed_array(storage);
+    size_t index = 0U;
+
+    TEST_ASSERT_FALSE(cve_array_linear_search(&array, 2025U, 3U, &index));
+}
+
+static void test_linear_argumentos_nulos_retornam_zero(void)
+{
+    CVE storage[5];
+    CVEArray array = make_fixed_array(storage);
+    size_t index = 0U;
+
+    TEST_ASSERT_FALSE(cve_array_linear_search(NULL, 2025U, 1U, &index));
+    TEST_ASSERT_FALSE(cve_array_linear_search(&array, 2025U, 1U, NULL));
+}
+
+static void test_linear_varredura_encontra_cada_elemento_no_indice_certo(void)
+{
+    CVE storage[5];
+    CVEArray array = make_fixed_array(storage);
+    size_t i;
+
+    for (i = 0U; i < array.count; ++i) {
+        size_t index = (size_t)-1;
+        int found = cve_array_linear_search(
+            &array, array.items[i].year, array.items[i].number, &index
+        );
+
+        TEST_ASSERT_TRUE(found);
+        TEST_ASSERT_EQUAL_size_t(i, index);
+    }
+}
+
+/* ---------------------------------------------------------------------
+ * Validacao cruzada: binaria e linear tem que sempre concordar, tanto em
+ * "achou/nao achou" quanto no indice. A linear e' a referencia "burra e
+ * confiavel" - se as duas divergem, o bug esta' na binaria.
+ * ------------------------------------------------------------------- */
+
+static void test_binaria_e_linear_concordam_em_todo_o_array_fixo(void)
+{
+    CVE storage[5];
+    CVEArray array = make_fixed_array(storage);
+    uint32_t year;
+
+    /* Chaves plausiveis de 2020 a 2027, numero de 1 a 105: cobre todo
+     * acerto do array fixo e varios "buracos" ao redor deles. */
+    for (year = 2020U; year <= 2027U; ++year) {
+        uint32_t number;
+
+        for (number = 1U; number <= 105U; ++number) {
+            size_t index_binaria = (size_t)-1;
+            size_t index_linear = (size_t)-1;
+            int found_binaria = cve_array_binary_search(&array, year, number, &index_binaria);
+            int found_linear = cve_array_linear_search(&array, year, number, &index_linear);
+
+            TEST_ASSERT_EQUAL_INT(found_linear, found_binaria);
+            if (found_linear) {
+                TEST_ASSERT_EQUAL_size_t(index_linear, index_binaria);
+            }
+        }
+    }
+}
+
+/* ---------------------------------------------------------------------
+ * variantes _counted
+ * ------------------------------------------------------------------- */
+
+static void test_counted_out_comparisons_nulo_nao_quebra(void)
+{
+    CVE storage[5];
+    CVEArray array = make_fixed_array(storage);
+    size_t index = 0U;
+
+    TEST_ASSERT_TRUE(cve_array_binary_search_counted(&array, 2025U, 1U, &index, NULL));
+    TEST_ASSERT_TRUE(cve_array_linear_search_counted(&array, 2025U, 1U, &index, NULL));
+}
+
+static void test_counted_binaria_conta_no_maximo_log2_mais_um_comparacoes(void)
+{
+    CVE storage[5];
+    CVEArray array = make_fixed_array(storage);
+    size_t index = 0U;
+    size_t comparisons = 0U;
+
+    /* Pior caso (nao encontrado) em 5 elementos: no maximo
+     * ceil(log2(5)) + 1 = 4 comparacoes. */
+    TEST_ASSERT_FALSE(cve_array_binary_search_counted(&array, 2025U, 3U, &index, &comparisons));
+    TEST_ASSERT_TRUE(comparisons >= 1U);
+    TEST_ASSERT_TRUE(comparisons <= 4U);
+}
+
+static void test_counted_linear_pior_caso_conta_exatamente_count_comparacoes(void)
+{
+    CVE storage[5];
+    CVEArray array = make_fixed_array(storage);
+    size_t index = 0U;
+    size_t comparisons = 0U;
+
+    /* Chave que nao existe: a linear tem que olhar todos os 5 elementos. */
+    TEST_ASSERT_FALSE(cve_array_linear_search_counted(&array, 2025U, 3U, &index, &comparisons));
+    TEST_ASSERT_EQUAL_size_t(array.count, comparisons);
+}
+
+static void test_counted_linear_encontra_primeiro_em_uma_comparacao(void)
+{
+    CVE storage[5];
+    CVEArray array = make_fixed_array(storage);
+    size_t index = 0U;
+    size_t comparisons = 0U;
+
+    TEST_ASSERT_TRUE(cve_array_linear_search_counted(&array, 2025U, 1U, &index, &comparisons));
+    TEST_ASSERT_EQUAL_size_t(1U, comparisons);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -172,6 +324,20 @@ int main(void)
     RUN_TEST(test_nao_encontra_chave_em_um_buraco_entre_anos);
     RUN_TEST(test_argumentos_nulos_retornam_zero);
     RUN_TEST(test_varredura_encontra_cada_elemento_no_indice_certo);
+
+    RUN_TEST(test_linear_array_vazio_nunca_encontra);
+    RUN_TEST(test_linear_encontra_o_primeiro_elemento);
+    RUN_TEST(test_linear_encontra_o_ultimo_elemento);
+    RUN_TEST(test_linear_nao_encontra_chave_em_um_buraco);
+    RUN_TEST(test_linear_argumentos_nulos_retornam_zero);
+    RUN_TEST(test_linear_varredura_encontra_cada_elemento_no_indice_certo);
+
+    RUN_TEST(test_binaria_e_linear_concordam_em_todo_o_array_fixo);
+
+    RUN_TEST(test_counted_out_comparisons_nulo_nao_quebra);
+    RUN_TEST(test_counted_binaria_conta_no_maximo_log2_mais_um_comparacoes);
+    RUN_TEST(test_counted_linear_pior_caso_conta_exatamente_count_comparacoes);
+    RUN_TEST(test_counted_linear_encontra_primeiro_em_uma_comparacao);
 
     return UNITY_END();
 }

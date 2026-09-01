@@ -20,9 +20,12 @@ TEST_C_DIR := tests/c
 UNITY_DIR := tests/unity
 
 #  Os testes em tests/c/ vão linkar direto (sem precisar de um main).
-LIB_SRCS := $(filter-out $(SRC_DIR)/main.c,$(wildcard $(SRC_DIR)/*.c))
+# bench.c tambem tem seu proprio main() (bin/cve_bench), entao fica de
+# fora da "biblioteca" pelo mesmo motivo que main.c fica.
+LIB_SRCS := $(filter-out $(SRC_DIR)/main.c $(SRC_DIR)/bench.c,$(wildcard $(SRC_DIR)/*.c))
 LIB_OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(LIB_SRCS))
 MAIN_OBJ := $(BUILD_DIR)/main.o
+BENCH_OBJ := $(BUILD_DIR)/bench.o
 
 # Testes em C
 # Cada tests/c/test_X.c e' um programa completo, entao cada um vira um binario bin/test_X, em vez de linkar todos
@@ -30,10 +33,11 @@ MAIN_OBJ := $(BUILD_DIR)/main.o
 TEST_SRCS := $(wildcard $(TEST_C_DIR)/test_*.c)
 TEST_BIN_NAMES := $(notdir $(basename $(TEST_SRCS)))
 APP_BIN := $(BIN_DIR)/cve_finder$(EXEEXT)
+BENCH_BIN := $(BIN_DIR)/cve_bench$(EXEEXT)
 RUN_TEST_TARGETS := $(addprefix run-,$(TEST_BIN_NAMES))
 UNITY_OBJ := $(BUILD_DIR)/unity.o
 
-.PHONY: all test test-c test-python clean $(RUN_TEST_TARGETS)
+.PHONY: all test test-c test-python bench clean $(RUN_TEST_TARGETS)
 
 # Sem isso, o make apaga os .o dos testes depois de linkar cada bin/test_X
 
@@ -44,6 +48,13 @@ all: $(APP_BIN)
 
 $(APP_BIN): $(LIB_OBJS) $(MAIN_OBJ) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -o $@ $^
+
+# --- Benchmark: busca binaria vs linear, grava output/benchmark.json ----------
+$(BENCH_BIN): $(LIB_OBJS) $(BENCH_OBJ) | $(BIN_DIR)
+	$(CC) $(CFLAGS) -o $@ $^
+
+bench: $(BENCH_BIN)
+	$(RUN_PREFIX)$(BENCH_BIN)
 
 # Regra genérica: qualquer src/X.c vira build/X.o
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
