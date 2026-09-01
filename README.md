@@ -1,5 +1,7 @@
 # G10_Busca_EDA2-2026.2
 
+#### Enzo Menali Vettorato Toledo  - 241011054
+#### Paulo Vitor Gomes de Brito Matos - 241025971
 CVE Finder — trabalho 1 de Estrutura de Dados 2 (EDA2). Carrega a base de
 CVEs de 2025 (formato oficial do MITRE, normalizada em CSV — 45.206
 registros) e permite buscar por **CVE-ID** ou por **produto** usando
@@ -11,7 +13,7 @@ interface web local que roda essas mesmas buscas ao vivo.
 Link da Apresentação:
 <div align="center">
   <br>
-  <iframe width="560" height="315" src="https://www.youtube.com" title="Apresentação Trabalho 1 EDA2" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+  <iframe width="560" height="315" src="https://www.youtube.com/embed/_XWHbnYXUGA" title="Apresentação Trabalho 1 EDA2" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 </div>
 
 ## Arquitetura
