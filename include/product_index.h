@@ -50,6 +50,39 @@ size_t product_name_index_lower_bound(
 );
 
 /*
+ * Igual product_name_index_lower_bound, mas tambem conta em
+ * *out_comparisons quantas comparacoes de nome (product_name_compare_ascii)
+ * foram feitas (out_comparisons pode ser NULL). E' o que
+ * product_name_index_lower_bound faz por baixo - usado para mostrar o
+ * custo real da busca binaria indexada (interface web / Fase 5).
+ */
+size_t product_name_index_lower_bound_counted(
+    const ProductNameIndex *index,
+    const char *product_name,
+    size_t *out_comparisons
+);
+
+/*
+ * Busca sequencial O(n): percorre o ProductArray original (na ordem em
+ * que foi carregado - por cve_id, nao por nome) ate' achar o primeiro
+ * produto cujo nome bate com product_name (mesma comparacao ASCII
+ * case-insensitive do indice). Nao usa o indice - e' a referencia "burra"
+ * para comparar com product_name_index_find_exact, do mesmo jeito que
+ * cve_array_linear_search e' a referencia da busca binaria por CVE-ID.
+ *
+ * Conta as comparacoes feitas em *out_comparisons (pode ser NULL). Se
+ * encontrar, escreve a posicao no ProductArray original em *out_index e
+ * retorna 1. Retorna 0 se nao encontrar, se o nome for vazio, ou se os
+ * argumentos forem invalidos.
+ */
+int product_array_linear_search(
+    const ProductArray *array,
+    const char *product_name,
+    size_t *out_index,
+    size_t *out_comparisons
+);
+
+/*
  * Em uma chamada valida, retorna 1 e preenche o intervalo de resultados
  * [out_start, out_start + out_count). Produto inexistente e' uma busca valida
  * com out_count igual a zero e out_start igual ao ponto de insercao.

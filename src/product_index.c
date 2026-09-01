@@ -118,9 +118,10 @@ void product_name_index_free(ProductNameIndex *index)
     *index = (ProductNameIndex){0};
 }
 
-size_t product_name_index_lower_bound(
+size_t product_name_index_lower_bound_counted(
     const ProductNameIndex *index,
-    const char *product_name
+    const char *product_name,
+    size_t *out_comparisons
 )
 {
     size_t low;
@@ -136,7 +137,12 @@ size_t product_name_index_lower_bound(
 
     while (low < high) {
         size_t middle = low + (high - low) / 2U;
-        int comparison = product_name_compare_ascii(
+        int comparison;
+
+        if (out_comparisons != NULL) {
+            ++(*out_comparisons);
+        }
+        comparison = product_name_compare_ascii(
             index->items[middle].product_name,
             product_name
         );
@@ -149,6 +155,43 @@ size_t product_name_index_lower_bound(
     }
 
     return low;
+}
+
+size_t product_name_index_lower_bound(
+    const ProductNameIndex *index,
+    const char *product_name
+)
+{
+    return product_name_index_lower_bound_counted(index, product_name, NULL);
+}
+
+int product_array_linear_search(
+    const ProductArray *array,
+    const char *product_name,
+    size_t *out_index,
+    size_t *out_comparisons
+)
+{
+    size_t index;
+
+    if (array == NULL || product_name == NULL || product_name[0] == '\0'
+        || out_index == NULL || (array->count > 0U && array->items == NULL)) {
+        return 0;
+    }
+
+    /* Sem indice, sem ordenacao: olha produto por produto na ordem do
+     * ProductArray original ate' achar o primeiro nome que bate. */
+    for (index = 0U; index < array->count; ++index) {
+        if (out_comparisons != NULL) {
+            ++(*out_comparisons);
+        }
+        if (product_name_compare_ascii(array->items[index].product, product_name) == 0) {
+            *out_index = index;
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 int product_name_index_find_exact(

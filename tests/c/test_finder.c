@@ -76,6 +76,8 @@ static void test_encontra_cve_com_produtos(void)
 
     TEST_ASSERT_TRUE(finder_search(&cves, &products, "CVE-2025-0001", &result));
     TEST_ASSERT_TRUE(result.found);
+    TEST_ASSERT_EQUAL_UINT32(2025U, result.year);
+    TEST_ASSERT_EQUAL_UINT32(1U, result.number);
     TEST_ASSERT_EQUAL_STRING("CVE-2025-0001", result.cve->cve_id);
     TEST_ASSERT_EQUAL_INT(CVE_STATE_PUBLISHED, result.cve->state);
     TEST_ASSERT_EQUAL_size_t(2U, result.product_count);
@@ -127,6 +129,11 @@ static void test_formato_valido_mas_cve_nao_existe(void)
 
     TEST_ASSERT_TRUE(finder_search(&cves, &products, "CVE-2025-9999", &result));
     TEST_ASSERT_FALSE(result.found);
+    /* Mesmo sem achar, a chave normalizada fica disponivel - e' o que
+     * query.c usa pra rodar as buscas contadas (binaria vs sequencial)
+     * sem precisar reanalisar a entrada do usuario. */
+    TEST_ASSERT_EQUAL_UINT32(2025U, result.year);
+    TEST_ASSERT_EQUAL_UINT32(9999U, result.number);
 }
 
 static void test_formato_invalido_retorna_zero(void)
@@ -141,6 +148,8 @@ static void test_formato_invalido_retorna_zero(void)
 
     TEST_ASSERT_FALSE(finder_search(&cves, &products, "nao-e-um-cve", &result));
     TEST_ASSERT_FALSE(result.found); /* out_result foi zerado */
+    TEST_ASSERT_EQUAL_UINT32(0U, result.year);
+    TEST_ASSERT_EQUAL_UINT32(0U, result.number);
 }
 
 static void test_entrada_vazia_e_invalida(void)

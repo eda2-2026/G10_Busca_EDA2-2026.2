@@ -27,6 +27,14 @@ static void print_state(CVEState state)
     json_write_string(stdout, state == CVE_STATE_PUBLISHED ? "PUBLISHED" : "REJECTED");
 }
 
+/* Compara o custo das duas buscas para a MESMA chave/consulta - nao troca
+ * o resultado que ja' veio de finder_search/finder_search_product, so'
+ * mede quantas comparacoes cada algoritmo teria feito (Fase 5). */
+static void print_comparisons(size_t binary, size_t sequential)
+{
+    printf(", \"comparisons\": {\"binary\": %zu, \"sequential\": %zu}", binary, sequential);
+}
+
 /* Registra a CVE encontrada em output/selections.json.*/
 static void persist_cve_selection(const FinderResult *result)
 {
@@ -69,11 +77,20 @@ static int run_cve_query(
 )
 {
     FinderResult result = {0};
+    size_t dummy_index;
+    size_t binary_comparisons = 0U;
+    size_t sequential_comparisons = 0U;
 
     if (!finder_search(cves, products, query, &result)) {
         print_error("Formato invalido. Use CVE-AAAA-NNNN (ex.: CVE-2025-0001).");
         return 1;
     }
+
+    /* finder_search ja' fez a busca "de verdade" (usa a binaria por
+     * baixo); rodamos as duas de novo, contadas, so' para mostrar o custo
+     * de cada uma lado a lado - o resultado exibido nao muda. */
+    cve_array_binary_search_counted(cves, result.year, result.number, &dummy_index, &binary_comparisons);
+    cve_array_linear_search_counted(cves, result.year, result.number, &dummy_index, &sequential_comparisons);
 
     printf("{\"found\": %s", result.found ? "true" : "false");
     if (result.found) {
@@ -93,6 +110,7 @@ static int run_cve_query(
         }
         printf("]");
     }
+    print_comparisons(binary_comparisons, sequential_comparisons);
     printf("}\n");
 
     if (result.found) {
@@ -110,6 +128,9 @@ static int run_product_query(
     ProductNameIndex index = {0};
     ProductSearchResult result = {0};
     size_t offset;
+    size_t dummy_index;
+    size_t binary_comparisons = 0U;
+    size_t sequential_comparisons = 0U;
 
     if (!product_name_index_build(&index, products)) {
         print_error("Nao foi possivel construir o indice de produtos.");
@@ -121,6 +142,12 @@ static int run_product_query(
         product_name_index_free(&index);
         return 1;
     }
+
+    /* Mesma ideia da busca por CVE-ID: a busca "de verdade" ja' rodou
+     * acima (indice + binaria); isso so' mede o custo de cada abordagem
+     * para a mesma consulta. */
+    product_name_index_lower_bound_counted(&index, query, &binary_comparisons);
+    product_array_linear_search(products, query, &dummy_index, &sequential_comparisons);
 
     printf("{\"query\": ");
     json_write_string(stdout, query);
@@ -153,7 +180,9 @@ static int run_product_query(
         printf("}");
     }
 
-    printf("]}\n");
+    printf("]");
+    print_comparisons(binary_comparisons, sequential_comparisons);
+    printf("}\n");
     product_name_index_free(&index);
     return 0;
 }

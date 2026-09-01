@@ -509,6 +509,148 @@ static void test_get_rejeita_posicao_invalida(void)
     product_name_index_free(&index);
 }
 
+/* ---------------------------------------------------------------------
+ * product_name_index_lower_bound_counted
+ * ------------------------------------------------------------------- */
+
+static void test_lower_bound_counted_conta_comparacoes_e_bate_com_a_nao_contada(void)
+{
+    Product storage[5];
+    ProductArray products = make_search_fixture(storage);
+    ProductNameIndex index = {0};
+    size_t comparisons = 0U;
+    size_t counted_position;
+    size_t plain_position;
+
+    TEST_ASSERT_TRUE(product_name_index_build(&index, &products));
+
+    counted_position = product_name_index_lower_bound_counted(&index, "WordPress", &comparisons);
+    plain_position = product_name_index_lower_bound(&index, "WordPress");
+
+    TEST_ASSERT_EQUAL_size_t(plain_position, counted_position);
+    TEST_ASSERT_TRUE(comparisons >= 1U);
+    /* 5 elementos: no maximo ceil(log2(5)) + 1 = 4 comparacoes. */
+    TEST_ASSERT_TRUE(comparisons <= 4U);
+
+    product_name_index_free(&index);
+}
+
+static void test_lower_bound_counted_out_comparisons_nulo_nao_quebra(void)
+{
+    Product storage[5];
+    ProductArray products = make_search_fixture(storage);
+    ProductNameIndex index = {0};
+
+    TEST_ASSERT_TRUE(product_name_index_build(&index, &products));
+    product_name_index_lower_bound_counted(&index, "Beta", NULL);
+    product_name_index_free(&index);
+}
+
+/* ---------------------------------------------------------------------
+ * product_array_linear_search
+ * ------------------------------------------------------------------- */
+
+static void test_linear_search_encontra_e_conta_comparacoes(void)
+{
+    Product storage[5];
+    ProductArray products = make_search_fixture(storage);
+    size_t index = 99U;
+    size_t comparisons = 0U;
+
+    /* "Beta" e' storage[4]: a busca sequencial tem que olhar os 5. */
+    TEST_ASSERT_TRUE(product_array_linear_search(&products, "Beta", &index, &comparisons));
+    TEST_ASSERT_EQUAL_size_t(4U, index);
+    TEST_ASSERT_EQUAL_size_t(5U, comparisons);
+}
+
+static void test_linear_search_encontra_o_primeiro_em_uma_comparacao(void)
+{
+    Product storage[5];
+    ProductArray products = make_search_fixture(storage);
+    size_t index = 99U;
+    size_t comparisons = 0U;
+
+    /* "Zulu" e' storage[0]: primeira comparacao ja' acerta. */
+    TEST_ASSERT_TRUE(product_array_linear_search(&products, "Zulu", &index, &comparisons));
+    TEST_ASSERT_EQUAL_size_t(0U, index);
+    TEST_ASSERT_EQUAL_size_t(1U, comparisons);
+}
+
+static void test_linear_search_nao_encontra_percorre_tudo(void)
+{
+    Product storage[5];
+    ProductArray products = make_search_fixture(storage);
+    size_t index = 99U;
+    size_t comparisons = 0U;
+
+    TEST_ASSERT_FALSE(product_array_linear_search(&products, "Delta", &index, &comparisons));
+    TEST_ASSERT_EQUAL_size_t(5U, comparisons);
+}
+
+static void test_linear_search_ignora_caixa_ascii(void)
+{
+    Product storage[5];
+    ProductArray products = make_search_fixture(storage);
+    size_t index = 99U;
+
+    TEST_ASSERT_TRUE(product_array_linear_search(&products, "wordpress", &index, NULL));
+    TEST_ASSERT_EQUAL_size_t(1U, index);
+}
+
+static void test_linear_search_rejeita_argumentos_invalidos(void)
+{
+    Product storage[5];
+    ProductArray products = make_search_fixture(storage);
+    size_t index = 0U;
+
+    TEST_ASSERT_FALSE(product_array_linear_search(NULL, "Beta", &index, NULL));
+    TEST_ASSERT_FALSE(product_array_linear_search(&products, NULL, &index, NULL));
+    TEST_ASSERT_FALSE(product_array_linear_search(&products, "", &index, NULL));
+    TEST_ASSERT_FALSE(product_array_linear_search(&products, "Beta", NULL, NULL));
+}
+
+static void test_linear_search_array_vazio(void)
+{
+    ProductArray products = {0};
+    size_t index = 0U;
+    size_t comparisons = 0U;
+
+    TEST_ASSERT_FALSE(product_array_linear_search(&products, "Beta", &index, &comparisons));
+    TEST_ASSERT_EQUAL_size_t(0U, comparisons);
+}
+
+/* ---------------------------------------------------------------------
+ * Validacao cruzada: indice+binaria e busca sequencial tem que sempre
+ * concordar se o produto existe ou nao - a sequencial e' a referencia
+ * "burra e confiavel".
+ * ------------------------------------------------------------------- */
+
+static void test_indexada_e_sequencial_concordam(void)
+{
+    Product storage[5];
+    ProductArray products = make_search_fixture(storage);
+    ProductNameIndex index = {0};
+    static const char *const queries[] = {
+        "Zulu", "WordPress", "wordpress", "Alpha", "Beta", "Delta", "Nada"
+    };
+    size_t i;
+
+    TEST_ASSERT_TRUE(product_name_index_build(&index, &products));
+
+    for (i = 0U; i < sizeof(queries) / sizeof(queries[0]); ++i) {
+        size_t start;
+        size_t count;
+        size_t linear_index;
+        int found_indexed = product_name_index_find_exact(&index, queries[i], &start, &count);
+        int found_linear = product_array_linear_search(&products, queries[i], &linear_index, NULL);
+
+        TEST_ASSERT_TRUE(found_indexed); /* consulta valida, mesmo sem achar nada */
+        TEST_ASSERT_EQUAL_INT(found_linear, count > 0U);
+    }
+
+    product_name_index_free(&index);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -539,6 +681,18 @@ int main(void)
     RUN_TEST(test_relacoes_duplicadas_permanecem_no_indice);
     RUN_TEST(test_mesmo_produto_em_cves_diferentes_retorna_todas);
     RUN_TEST(test_get_rejeita_posicao_invalida);
+
+    RUN_TEST(test_lower_bound_counted_conta_comparacoes_e_bate_com_a_nao_contada);
+    RUN_TEST(test_lower_bound_counted_out_comparisons_nulo_nao_quebra);
+
+    RUN_TEST(test_linear_search_encontra_e_conta_comparacoes);
+    RUN_TEST(test_linear_search_encontra_o_primeiro_em_uma_comparacao);
+    RUN_TEST(test_linear_search_nao_encontra_percorre_tudo);
+    RUN_TEST(test_linear_search_ignora_caixa_ascii);
+    RUN_TEST(test_linear_search_rejeita_argumentos_invalidos);
+    RUN_TEST(test_linear_search_array_vazio);
+
+    RUN_TEST(test_indexada_e_sequencial_concordam);
 
     return UNITY_END();
 }

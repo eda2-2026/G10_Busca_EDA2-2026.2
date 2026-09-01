@@ -2,6 +2,7 @@
 #define FINDER_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include "cve.h"
 #include "product.h"
@@ -9,6 +10,12 @@
 
 typedef struct {
     int found;                /* 1 se o CVE existe na base, 0 caso contrario */
+    uint32_t year;            /* chave normalizada do CVE-ID; valida sempre que
+                                * finder_search retornou 1 (formato ok), mesmo
+                                * se found == 0 - permite ao chamador refazer a
+                                * busca (ex.: contando comparacoes) sem
+                                * reanalizar raw_input. */
+    uint32_t number;
     const CVE *cve;           /* aponta para dentro do CVEArray recebido; valido so' se found */
     const Product *products;  /* aponta para o primeiro produto dentro do ProductArray recebido */
     size_t product_count;

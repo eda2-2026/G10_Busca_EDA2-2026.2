@@ -66,6 +66,9 @@ int finder_search(
         return 0;
     }
 
+    out_result->year = year;
+    out_result->number = number;
+
     if (!cve_array_binary_search(cves, year, number, &cve_index)) {
         return 1; /* formato valido, mas esse CVE nao existe na base */
     }
