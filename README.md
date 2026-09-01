@@ -37,8 +37,8 @@ interfaces   main.c         -> REPL: menu (1 CVE-ID / 2 produto / 0 sair),
              bench.c        -> mede comparações e tempo: binária vs sequencial,
                                 grava output/benchmark.json
              query.c        -> uma busca por chamada, em JSON no stdout - usado
-                                pelo servidor local (não reimplementa nada, só
-                                formata a saída de finder_search/finder_search_product)
+                                pelo servidor local; formata a saída do Finder e
+                                persiste as buscas de CVE encontradas
 ```
 
 A extração/normalização dos dados fica em Python
@@ -88,9 +88,10 @@ Abre um menu interativo:
 ```
 
 CVE-ID aceita minúsculas e espaços nas pontas (ex.: `cve-2025-0001`); a
-busca por produto ignora caixa (`wordpress` == `WordPress`). Toda busca de
-CVE com sucesso é gravada em `output/selections.json`, acumulando entre
-execuções sem duplicar por `cve_id`:
+busca por produto é exata, exige o nome completo e ignora caixa
+(`wordpress` == `WordPress`). Toda busca de CVE com sucesso é gravada em
+`output/selections.json`, acumulando entre execuções sem duplicar por
+`cve_id`:
 
 ```json
 {"cve_id": "CVE-2025-0001", "year": 2025, "state": "PUBLISHED", "products": ["Abacus"]}
@@ -105,13 +106,17 @@ make serve
 Compila `bin/cve_query` e sobe um servidor em `http://127.0.0.1:8000/`
 (Ctrl+C para parar). A página tem dois campos de busca (CVE-ID e produto,
 mesmo menu do CLI) que chamam de verdade o binário `cve_query` a cada
-consulta - não é uma reimplementação em JavaScript. Cada busca mostra,
-lado a lado, quantas comparações a **busca binária** e a **busca
-sequencial** fizeram para aquela mesma consulta (útil para ver o efeito na
-prática: numa busca que não existe, a diferença é brutal; num elemento
-bem no início do array carregado, a sequencial pode até "ganhar" - é
-matematicamente esperado, não um bug). Como o servidor recarrega a base
-inteira a cada busca, a resposta leva ~0,3-0,5s.
+consulta - não é uma reimplementação em JavaScript. Para CVEs publicadas,
+o resultado mostra título (quando existente), descrição em inglês e
+produtos associados; para CVEs rejeitadas, mostra o motivo da rejeição.
+As buscas de CVE encontradas também são gravadas em
+`output/selections.json`. Cada busca mostra, lado a lado, quantas
+comparações a **busca binária** e a **busca sequencial** fizeram para
+aquela mesma consulta (útil para ver o efeito na prática: numa busca que
+não existe, a diferença é brutal; num elemento bem no início do array
+carregado, a sequencial pode até "ganhar" - é matematicamente esperado,
+não um bug). Como o servidor recarrega a base inteira a cada busca, a
+resposta leva ~0,3-0,5s.
 
 ## Rodar o benchmark
 
