@@ -2,6 +2,7 @@
 
 #### Enzo Menali Vettorato Toledo  - 241011054
 #### Paulo Vitor Gomes de Brito Matos - 241025971
+
 CVE Finder — trabalho 1 de Estrutura de Dados 2 (EDA2). Carrega a base de
 CVEs de 2025 (formato oficial do MITRE, normalizada em CSV — 45.206
 registros) e permite buscar por **CVE-ID** ou por **produto** usando
