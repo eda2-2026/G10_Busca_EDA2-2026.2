@@ -283,14 +283,8 @@
 <body>
   <div class="page">
     <header class="masthead">
-      <p class="eyebrow"><span class="server-dot" id="server-dot"></span>CVE Finder · Servidor local</p>
-      <h1>Busca ao vivo</h1>
-      <p class="lede">
-        Cada busca aqui chama de verdade o <code>bin/cve_query</code> compilado a partir do
-        mesmo código C testado no resto do projeto — <code>finder_search</code> e
-        <code>finder_search_product</code>, sobre <code>cve_array_binary_search</code>. Não é
-        uma cópia em JavaScript.
-      </p>
+      <p class="eyebrow"><span class="server-dot" id="server-dot"></span>CVE Finder</p>
+      <h1>CVE Finder</h1>
     </header>
 
     <div class="mode-switch" role="group" aria-label="Tipo de busca">
@@ -310,7 +304,7 @@
         >
         <button class="btn" type="submit" id="btn-cve">Buscar</button>
       </form>
-      <p class="search-hint">Aceita minúsculas e espaços nas pontas — mesma normalização do REPL em C.</p>
+      <p class="search-hint">Aceita minúsculas e espaços nas pontas.</p>
       <div class="result-area" id="result-cve"></div>
     </section>
 
@@ -326,18 +320,9 @@
         >
         <button class="btn" type="submit" id="btn-product">Buscar</button>
       </form>
-      <p class="search-hint">Busca exata (ignorando maiúsculas/minúsculas) no índice de produtos — <code>product_name_index_find_exact</code>.</p>
+      <p class="search-hint">Busca exata (ignorando maiúsculas/minúsculas) no índice de produtos.</p>
       <div class="result-area" id="result-product"></div>
     </section>
-
-    <footer class="methodology">
-      <p>
-        Cada busca por CVE-ID encontrada é gravada em <code>output/selections.json</code>
-        (mesma persistência da Fase 4) — abra o painel de triagem pra navegar pelo que foi
-        selecionado até agora. O servidor (<code>scripts/serve.py</code>) recarrega a base
-        inteira a cada busca, por isso a resposta leva ~0,3–0,5s.
-      </p>
-    </footer>
   </div>
 
 <script>
