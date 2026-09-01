@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CVE Finder</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --page:         #f9f9f7;
+    --surface:      #fcfcfb;
+    --surface-2:    #f3f2ee;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:   #898781;
+    --gridline:     #e1e0d9;
+    --border:       rgba(11,11,11,0.10);
+    --series-1:     #2a78d6; /* acento primario (mesmo padrao dos paineis) */
+    --series-1-soft: rgba(42,120,214,0.12);
+    --status-good:  #0ca30c; /* aprovada / PUBLISHED */
+    --status-good-soft: rgba(12,163,12,0.12);
+    --danger: #d03b3b;
+    --shadow: 0 1px 2px rgba(11,11,11,0.04), 0 8px 24px -12px rgba(11,11,11,0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page:         #0d0d0d;
+      --surface:      #1a1a19;
+      --surface-2:    #232322;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:   #898781;
+      --gridline:     #2c2c2a;
+      --border:       rgba(255,255,255,0.10);
+      --series-1:     #3987e5;
+      --series-1-soft: rgba(57,135,229,0.16);
+      --status-good:  #0ca30c;
+      --status-good-soft: rgba(12,163,12,0.18);
+      --danger: #e66767;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:         #0d0d0d;
+    --surface:      #1a1a19;
+    --surface-2:    #232322;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:   #898781;
+    --gridline:     #2c2c2a;
+    --border:       rgba(255,255,255,0.10);
+    --series-1:     #3987e5;
+    --series-1-soft: rgba(57,135,229,0.16);
+    --status-good:  #0ca30c;
+    --status-good-soft: rgba(12,163,12,0.18);
+    --danger: #e66767;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.5;
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace; }
+  code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.9em; }
+  img { max-width: 100%; }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  /* ---------- Header ---------- */
+  .masthead { display: flex; flex-direction: column; gap: 10px; }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .server-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); flex: none; }
+  .server-dot.is-up { background: var(--status-good); }
+  .server-dot.is-down { background: var(--danger); }
+  h1 {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    font-size: clamp(28px, 5vw, 42px);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .lede { font-size: 15px; color: var(--text-secondary); max-width: 62ch; margin: 0; }
+
+  /* ---------- Mode switch ---------- */
+  .mode-switch {
+    display: inline-flex;
+    gap: 4px;
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 4px;
+    width: fit-content;
+  }
+  .mode-btn {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 100ms ease, color 100ms ease;
+  }
+  .mode-btn[aria-pressed="true"] { background: var(--surface); color: var(--text-primary); box-shadow: var(--shadow); }
+  .mode-btn:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+
+  /* ---------- Search panel ---------- */
+  .search-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .search-form { display: flex; gap: 8px; flex-wrap: wrap; }
+  .search-input {
+    flex: 1 1 240px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 15px;
+    padding: 11px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--page);
+    color: var(--text-primary);
+  }
+  .search-input::placeholder { color: var(--text-muted); font-family: "Public Sans", sans-serif; }
+  .search-input:focus-visible { outline: 2px solid var(--series-1); outline-offset: 1px; }
+  .btn {
+    font-family: "Public Sans", sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 11px 18px;
+    cursor: pointer;
+    border: 1px solid var(--text-primary);
+    background: var(--text-primary);
+    color: var(--page);
+    transition: transform 100ms ease, opacity 100ms ease;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+  .search-hint { font-size: 12.5px; color: var(--text-muted); margin: 0; }
+
+  .result-area { min-height: 2px; }
+  .status-line {
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .spinner {
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    border-top-color: var(--series-1);
+    animation: spin 700ms linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status-line.is-error { color: var(--danger); font-weight: 600; }
+
+  /* ---------- CVE card (reaproveitado das duas buscas) ---------- */
+  .cve-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .cve-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .cve-id { font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 15px; }
+  .cve-year { font-size: 12px; color: var(--text-muted); }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex: none;
+  }
+  .status-pill .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .status-pill.published { background: var(--status-good-soft); color: var(--text-primary); }
+  .status-pill.published .dot { background: var(--status-good); }
+  .status-pill.rejected { background: var(--surface); color: var(--text-secondary); }
+  .status-pill.rejected .dot { background: var(--text-muted); }
+
+  .product-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .product-chip {
+    font-size: 12px;
+    background: var(--surface);
+    color: var(--text-secondary);
+    padding: 4px 9px;
+    border-radius: 6px;
+    line-height: 1.3;
+  }
+  .no-products { font-size: 12.5px; color: var(--text-muted); font-style: italic; }
+
+  .result-list { display: flex; flex-direction: column; gap: 8px; }
+  .result-count { font-size: 13px; color: var(--text-muted); }
+
+  .persist-note {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .persist-note .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--status-good); }
+
+  /* ---------- Footer ---------- */
+  .methodology {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--gridline);
+    padding-top: 16px;
+  }
+  .methodology p { margin: 0; max-width: 70ch; }
+
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation: none; }
+    * { transition-duration: 0.001ms !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <header class="masthead">
+      <p class="eyebrow"><span class="server-dot" id="server-dot"></span>CVE Finder · Servidor local</p>
+      <h1>Busca ao vivo</h1>
+      <p class="lede">
+        Cada busca aqui chama de verdade o <code>bin/cve_query</code> compilado a partir do
+        mesmo código C testado no resto do projeto — <code>finder_search</code> e
+        <code>finder_search_product</code>, sobre <code>cve_array_binary_search</code>. Não é
+        uma cópia em JavaScript.
+      </p>
+    </header>
+
+    <div class="mode-switch" role="group" aria-label="Tipo de busca">
+      <button class="mode-btn" type="button" data-mode="cve" aria-pressed="true">Por CVE-ID</button>
+      <button class="mode-btn" type="button" data-mode="product" aria-pressed="false">Por produto</button>
+    </div>
+
+    <!-- ---------- Busca por CVE-ID ---------- -->
+    <section class="search-card" id="panel-cve">
+      <form class="search-form" id="form-cve">
+        <input
+          class="search-input"
+          id="input-cve"
+          type="text"
+          placeholder="CVE-2025-0001"
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <button class="btn" type="submit" id="btn-cve">Buscar</button>
+      </form>
+      <p class="search-hint">Aceita minúsculas e espaços nas pontas — mesma normalização do REPL em C.</p>
+      <div class="result-area" id="result-cve"></div>
+    </section>
+
+    <!-- ---------- Busca por produto ---------- -->
+    <section class="search-card" id="panel-product" hidden>
+      <form class="search-form" id="form-product">
+        <input
+          class="search-input mono-off"
+          id="input-product"
+          type="text"
+          placeholder="Xilinx Run Time (XRT)"
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <button class="btn" type="submit" id="btn-product">Buscar</button>
+      </form>
+      <p class="search-hint">Busca exata (ignorando maiúsculas/minúsculas) no índice de produtos — <code>product_name_index_find_exact</code>.</p>
+      <div class="result-area" id="result-product"></div>
+    </section>
+
+    <footer class="methodology">
+      <p>
+        Cada busca por CVE-ID encontrada é gravada em <code>output/selections.json</code>
+        (mesma persistência da Fase 4) — abra o painel de triagem pra navegar pelo que foi
+        selecionado até agora. O servidor (<code>scripts/serve.py</code>) recarrega a base
+        inteira a cada busca, por isso a resposta leva ~0,3–0,5s.
+      </p>
+    </footer>
+  </div>
+
+<script>
+  var els = {
+    serverDot: document.getElementById('server-dot'),
+    modeBtns: Array.prototype.slice.call(document.querySelectorAll('.mode-btn')),
+    panelCve: document.getElementById('panel-cve'),
+    panelProduct: document.getElementById('panel-product'),
+    formCve: document.getElementById('form-cve'),
+    formProduct: document.getElementById('form-product'),
+    inputCve: document.getElementById('input-cve'),
+    inputProduct: document.getElementById('input-product'),
+    btnCve: document.getElementById('btn-cve'),
+    btnProduct: document.getElementById('btn-product'),
+    resultCve: document.getElementById('result-cve'),
+    resultProduct: document.getElementById('result-product')
+  };
+
+  els.modeBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      els.modeBtns.forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+      btn.setAttribute('aria-pressed', 'true');
+      var isCve = btn.getAttribute('data-mode') === 'cve';
+      els.panelCve.hidden = !isCve;
+      els.panelProduct.hidden = isCve;
+      (isCve ? els.inputCve : els.inputProduct).focus();
+    });
+  });
+
+  function buildStatusPill(state) {
+    var pill = document.createElement('span');
+    var isPublished = state === 'PUBLISHED';
+    pill.className = 'status-pill ' + (isPublished ? 'published' : 'rejected');
+    var dot = document.createElement('span');
+    dot.className = 'dot';
+    pill.appendChild(dot);
+    pill.appendChild(document.createTextNode(isPublished ? 'Aprovada' : 'Rejeitada'));
+    return pill;
+  }
+
+  function buildCveCard(data) {
+    var card = document.createElement('article');
+    card.className = 'cve-card';
+
+    var head = document.createElement('div');
+    head.className = 'cve-card-head';
+    var idBlock = document.createElement('div');
+    var idEl = document.createElement('div');
+    idEl.className = 'cve-id';
+    idEl.textContent = data.cve_id;
+    var yearEl = document.createElement('div');
+    yearEl.className = 'cve-year';
+    yearEl.textContent = 'Ano ' + data.year;
+    idBlock.appendChild(idEl);
+    idBlock.appendChild(yearEl);
+    head.appendChild(idBlock);
+    head.appendChild(buildStatusPill(data.state));
+    card.appendChild(head);
+
+    if (data.products && data.products.length > 0) {
+      var chips = document.createElement('div');
+      chips.className = 'product-chips';
+      data.products.forEach(function (p) {
+        var chip = document.createElement('span');
+        chip.className = 'product-chip';
+        chip.textContent = p;
+        chips.appendChild(chip);
+      });
+      card.appendChild(chips);
+    } else if (data.product) {
+      var chips2 = document.createElement('div');
+      chips2.className = 'product-chips';
+      var chip2 = document.createElement('span');
+      chip2.className = 'product-chip';
+      chip2.textContent = data.product;
+      chips2.appendChild(chip2);
+      card.appendChild(chips2);
+    } else {
+      var none = document.createElement('span');
+      none.className = 'no-products';
+      none.textContent = data.state === 'REJECTED' ? 'Sem produtos (CVE rejeitada)' : 'Nenhum produto listado';
+      card.appendChild(none);
+    }
+
+    return card;
+  }
+
+  function showStatus(container, text, opts) {
+    opts = opts || {};
+    container.innerHTML = '';
+    var line = document.createElement('div');
+    line.className = 'status-line' + (opts.error ? ' is-error' : '');
+    if (opts.loading) {
+      var spinner = document.createElement('span');
+      spinner.className = 'spinner';
+      line.appendChild(spinner);
+    }
+    line.appendChild(document.createTextNode(text));
+    container.appendChild(line);
+  }
+
+  function fetchJson(url) {
+    return fetch(url).then(function (res) {
+      return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+    });
+  }
+
+  function setServerUp(isUp) {
+    els.serverDot.className = 'server-dot ' + (isUp ? 'is-up' : 'is-down');
+  }
+
+  els.formCve.addEventListener('submit', function (evt) {
+    evt.preventDefault();
+    var query = els.inputCve.value.trim();
+    if (!query) return;
+
+    els.btnCve.disabled = true;
+    showStatus(els.resultCve, 'Buscando ' + query + '…', { loading: true });
+
+    fetchJson('/api/cve?q=' + encodeURIComponent(query))
+      .then(function (res) {
+        setServerUp(true);
+        els.btnCve.disabled = false;
+        var data = res.body;
+
+        if (data.error) {
+          showStatus(els.resultCve, data.error, { error: true });
+          return;
+        }
+        if (!data.found) {
+          showStatus(els.resultCve, query + ': não encontrado na base.');
+          return;
+        }
+
+        els.resultCve.innerHTML = '';
+        els.resultCve.appendChild(buildCveCard(data));
+
+        var note = document.createElement('div');
+        note.className = 'persist-note';
+        var dot = document.createElement('span');
+        dot.className = 'dot';
+        note.appendChild(dot);
+        note.appendChild(document.createTextNode('Salvo em output/selections.json'));
+        els.resultCve.appendChild(note);
+      })
+      .catch(function () {
+        setServerUp(false);
+        els.btnCve.disabled = false;
+        showStatus(els.resultCve, 'Não consegui falar com o servidor local. Ele ainda está rodando? (make serve)', { error: true });
+      });
+  });
+
+  els.formProduct.addEventListener('submit', function (evt) {
+    evt.preventDefault();
+    var query = els.inputProduct.value.trim();
+    if (!query) return;
+
+    els.btnProduct.disabled = true;
+    showStatus(els.resultProduct, 'Buscando "' + query + '"…', { loading: true });
+
+    fetchJson('/api/product?q=' + encodeURIComponent(query))
+      .then(function (res) {
+        setServerUp(true);
+        els.btnProduct.disabled = false;
+        var data = res.body;
+
+        if (data.error) {
+          showStatus(els.resultProduct, data.error, { error: true });
+          return;
+        }
+
+        els.resultProduct.innerHTML = '';
+        var countLine = document.createElement('p');
+        countLine.className = 'result-count';
+        countLine.textContent = data.count + ' CVE(s) afetada(s) por "' + data.query + '"';
+        els.resultProduct.appendChild(countLine);
+
+        if (data.count === 0) return;
+
+        var list = document.createElement('div');
+        list.className = 'result-list';
+        data.results.forEach(function (item) { list.appendChild(buildCveCard(item)); });
+        els.resultProduct.appendChild(list);
+      })
+      .catch(function () {
+        setServerUp(false);
+        els.btnProduct.disabled = false;
+        showStatus(els.resultProduct, 'Não consegui falar com o servidor local. Ele ainda está rodando? (make serve)', { error: true });
+      });
+  });
+
+  // Ping inicial pra acender o indicador de servidor (sem disparar uma busca real).
+  fetch('/api/cve?q=').then(function (res) {
+    setServerUp(res.status === 400 || res.ok); // 400 = "q vazio", o servidor esta' de pe'
+  }).catch(function () { setServerUp(false); });
+</script>
+</body>
+</html>

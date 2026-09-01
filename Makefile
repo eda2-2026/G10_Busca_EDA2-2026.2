@@ -20,12 +20,14 @@ TEST_C_DIR := tests/c
 UNITY_DIR := tests/unity
 
 #  Os testes em tests/c/ vão linkar direto (sem precisar de um main).
-# bench.c tambem tem seu proprio main() (bin/cve_bench), entao fica de
-# fora da "biblioteca" pelo mesmo motivo que main.c fica.
-LIB_SRCS := $(filter-out $(SRC_DIR)/main.c $(SRC_DIR)/bench.c,$(wildcard $(SRC_DIR)/*.c))
+# bench.c e query.c tambem tem seu proprio main() (bin/cve_bench,
+# bin/cve_query), entao ficam de fora da "biblioteca" pelo mesmo motivo
+# que main.c fica.
+LIB_SRCS := $(filter-out $(SRC_DIR)/main.c $(SRC_DIR)/bench.c $(SRC_DIR)/query.c,$(wildcard $(SRC_DIR)/*.c))
 LIB_OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(LIB_SRCS))
 MAIN_OBJ := $(BUILD_DIR)/main.o
 BENCH_OBJ := $(BUILD_DIR)/bench.o
+QUERY_OBJ := $(BUILD_DIR)/query.o
 
 # Testes em C
 # Cada tests/c/test_X.c e' um programa completo, entao cada um vira um binario bin/test_X, em vez de linkar todos
@@ -34,17 +36,18 @@ TEST_SRCS := $(wildcard $(TEST_C_DIR)/test_*.c)
 TEST_BIN_NAMES := $(notdir $(basename $(TEST_SRCS)))
 APP_BIN := $(BIN_DIR)/cve_finder$(EXEEXT)
 BENCH_BIN := $(BIN_DIR)/cve_bench$(EXEEXT)
+QUERY_BIN := $(BIN_DIR)/cve_query$(EXEEXT)
 RUN_TEST_TARGETS := $(addprefix run-,$(TEST_BIN_NAMES))
 UNITY_OBJ := $(BUILD_DIR)/unity.o
 
-.PHONY: all test test-c test-python bench clean $(RUN_TEST_TARGETS)
+.PHONY: all test test-c test-python bench serve clean $(RUN_TEST_TARGETS)
 
 # Sem isso, o make apaga os .o dos testes depois de linkar cada bin/test_X
 
 .SECONDARY:
 
 # --- Alvo padrão: o executável principal --------------------------------------
-all: $(APP_BIN)
+all: $(APP_BIN) $(QUERY_BIN)
 
 $(APP_BIN): $(LIB_OBJS) $(MAIN_OBJ) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -o $@ $^
@@ -55,6 +58,14 @@ $(BENCH_BIN): $(LIB_OBJS) $(BENCH_OBJ) | $(BIN_DIR)
 
 bench: $(BENCH_BIN)
 	$(RUN_PREFIX)$(BENCH_BIN)
+
+# --- cve_query: uma busca por chamada, usado pelo servidor local (frontend) ---
+$(QUERY_BIN): $(LIB_OBJS) $(QUERY_OBJ) | $(BIN_DIR)
+	$(CC) $(CFLAGS) -o $@ $^
+
+# Compila bin/cve_query e sobe o servidor local (frontend/ + API sobre ele)
+serve: $(QUERY_BIN)
+	python3 scripts/serve.py
 
 # Regra genérica: qualquer src/X.c vira build/X.o
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
